@@ -10,24 +10,31 @@ RUN npm run build
 FROM node:22-slim
 WORKDIR /app
 
-# Install native dependencies for better-sqlite3
-RUN apt-get update && apt-get install -y python3 make g++ \
+# Instala dependências nativas para o better-sqlite3 e o tsx
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
-# Install production dependencies
-RUN npm install --omit=dev
+# Instala tanto dependências de produção quanto o necessário para rodar o servidor TS
+RUN npm install --include=dev && npm cache clean --force
 
-# Copy build artifacts and server code
+# Copia os arquivos compilados do frontend e o código do servidor
 COPY --from=build /app/dist ./dist
-COPY server.ts ./package.json ./
+COPY server.ts ./
 
-# Expose the port (always 3000 in this platform, but customizable elsewhere)
+# Configura o diretório do banco de dados (Volume compatível)
+RUN mkdir -p /app/data
+ENV DATABASE_PATH=/app/data/saude_sabor.db
+
+# Expondo a porta padrão
 EXPOSE 3000
 
-# Environment variables
+# Variáveis de ambiente
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Run the server
+# Comando para iniciar
 CMD ["npm", "start"]
