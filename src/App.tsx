@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useState, ReactNode, useEffect } from "react";
 import { Button } from "@/components/ui/button.tsx";
-import { ScrollArea } from "@/components/ui/scroll-area.tsx";
+
 import Dashboard from "@/components/Dashboard.tsx";
 import Inventory from "@/components/Inventory.tsx";
 import Categories from "@/components/Categories.tsx";
@@ -70,7 +70,7 @@ function Layout({ children, onLogout }: { children: ReactNode, onLogout: () => v
           </h1>
           <p className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-medium">Painel de Controle v1.0</p>
         </div>
-        <ScrollArea className="flex-1 p-4">
+        <div className="flex-1 p-4 overflow-y-auto">
           <nav className="space-y-1">
             {navigation.map((item) => (
               <Link
@@ -87,7 +87,7 @@ function Layout({ children, onLogout }: { children: ReactNode, onLogout: () => v
               </Link>
             ))}
           </nav>
-        </ScrollArea>
+        </div>
         <div className="p-4 border-t border-slate-700 bg-slate-900/50 mt-auto">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
