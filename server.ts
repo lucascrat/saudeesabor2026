@@ -99,6 +99,7 @@ try {
 // Initial Admin Settings
 db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)").run("admin_username", "saudeesabor");
 db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)").run("admin_password", "saude2026");
+db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)").run("app_logo", "");
 
 // Seed default categories
 const ensureCategory = (name: string, type: string) => {
@@ -143,13 +144,21 @@ async function startServer() {
   });
 
   app.post("/api/settings", (req, res) => {
-    const { admin_username, admin_password } = req.body;
+    const { admin_username, admin_password, app_logo } = req.body;
     const transaction = db.transaction(() => {
       if (admin_username) {
         db.prepare("UPDATE settings SET value = ? WHERE key = 'admin_username'").run(admin_username);
       }
       if (admin_password) {
         db.prepare("UPDATE settings SET value = ? WHERE key = 'admin_password'").run(admin_password);
+      }
+      if (app_logo !== undefined) {
+        const existing = db.prepare("SELECT key FROM settings WHERE key = 'app_logo'").get();
+        if (existing) {
+          db.prepare("UPDATE settings SET value = ? WHERE key = 'app_logo'").run(app_logo);
+        } else {
+          db.prepare("INSERT INTO settings (key, value) VALUES ('app_logo', ?)").run(app_logo);
+        }
       }
     });
     transaction();

@@ -10,6 +10,7 @@ export default function Settings() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [appLogo, setAppLogo] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -17,6 +18,7 @@ export default function Settings() {
       .then(res => res.json())
       .then(data => {
         setUsername(data.admin_username || "");
+        setAppLogo(data.app_logo || "");
       });
   }, []);
 
@@ -29,7 +31,7 @@ export default function Settings() {
 
     setIsLoading(true);
     try {
-      const payload: any = { admin_username: username };
+      const payload: any = { admin_username: username, app_logo: appLogo };
       if (password) payload.admin_password = password;
 
       const response = await fetch("/api/settings", {
@@ -115,6 +117,20 @@ export default function Settings() {
                       className="pl-10 bg-slate-50 border-slate-200 focus:bg-white transition-all"
                     />
                   </div>
+                </div>
+              </div>
+
+              <div className="space-y-2 mt-4">
+                <Label htmlFor="appLogo" className="text-xs font-bold uppercase text-slate-500">URL da Logo na Tela de Login (Opcional)</Label>
+                <div className="relative">
+                  <Input 
+                    id="appLogo" 
+                    type="text"
+                    placeholder="Ex: https://i.imgur.com/logo.png" 
+                    value={appLogo} 
+                    onChange={(e) => setAppLogo(e.target.value)}
+                    className="bg-slate-50 border-slate-200 focus:bg-white transition-all"
+                  />
                 </div>
               </div>
 

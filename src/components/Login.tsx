@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,18 @@ export default function Login({ onLogin }: LoginProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [logoUrl, setLogoUrl] = useState("https://lirp.cdn-website.com/3932750e/dms3blk/lib/exe/fetch.php?media=logo_saude_sabor.png");
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then(res => res.json())
+      .then(data => {
+        if (data.app_logo) {
+          setLogoUrl(data.app_logo);
+        }
+      })
+      .catch(err => console.error("Error fetching logo:", err));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,9 +75,9 @@ export default function Login({ onLogin }: LoginProps) {
              className="w-48 h-48 bg-white rounded-full flex items-center justify-center shadow-2xl border-[6px] border-orange-400 p-2 overflow-hidden"
            >
               <img 
-                src="https://lirp.cdn-website.com/3932750e/dms3blk/lib/exe/fetch.php?media=logo_saude_sabor.png" 
+                src={logoUrl} 
                 alt="Saúde & Sabor Logo" 
-                className="w-full h-full object-contain"
+                className="w-full h-full object-cover"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   target.src = "https://cdn-icons-png.flaticon.com/512/2927/2927347.png"; // Healthy food icon fallback
