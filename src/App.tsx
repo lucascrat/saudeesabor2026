@@ -17,17 +17,17 @@ import {
   ShieldCheck
 } from "lucide-react";
 import { useState, ReactNode, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import Dashboard from "@/components/Dashboard";
-import Inventory from "@/components/Inventory";
-import Categories from "@/components/Categories";
-import Expenses from "@/components/Expenses";
-import Sales from "@/components/Sales";
-import Logistics from "@/components/Logistics";
-import Settings from "@/components/Settings";
-import Login from "@/components/Login";
-import { Toaster } from "@/components/ui/sonner";
+import { Button } from "@/components/ui/button.tsx";
+import { ScrollArea } from "@/components/ui/scroll-area.tsx";
+import Dashboard from "@/components/Dashboard.tsx";
+import Inventory from "@/components/Inventory.tsx";
+import Categories from "@/components/Categories.tsx";
+import Expenses from "@/components/Expenses.tsx";
+import Sales from "@/components/Sales.tsx";
+import Logistics from "@/components/Logistics.tsx";
+import Settings from "@/components/Settings.tsx";
+import Login from "@/components/Login.tsx";
+import { Toaster } from "@/components/ui/sonner.tsx";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 
