@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, Stats } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, ShoppingBag, TrendingUp, Truck, Calendar } from "lucide-react";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 

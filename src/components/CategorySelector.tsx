@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { api, Category } from "@/lib/api";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select";
-import { Button } from "@/components/ui/Button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { Plus, X } from "lucide-react";
 import { toast } from "sonner";
-import { Input } from "@/components/ui/Input";
+import { Input } from "@/components/ui/input";
 
 interface CategorySelectorProps {
   type: 'INVENTORY' | 'EXPENSE';

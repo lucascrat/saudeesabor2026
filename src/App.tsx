@@ -17,8 +17,8 @@ import {
   ShieldCheck
 } from "lucide-react";
 import { useState, ReactNode, useEffect } from "react";
-import { Button } from "@/components/ui/Button";
-import { ScrollArea } from "@/components/ui/ScrollArea";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import Dashboard from "@/components/Dashboard";
 import Inventory from "@/components/Inventory";
 import Categories from "@/components/Categories";
@@ -27,7 +27,7 @@ import Sales from "@/components/Sales";
 import Logistics from "@/components/Logistics";
 import Settings from "@/components/Settings";
 import Login from "@/components/Login";
-import { Toaster } from "@/components/ui/Sonner";
+import { Toaster } from "@/components/ui/sonner";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 

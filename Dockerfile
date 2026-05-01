@@ -30,4 +30,4 @@ ENV NODE_ENV=production
 ENV PORT=3000
 
 # Run the server
-CMD ["npx", "tsx", "server.ts"]
+CMD ["npm", "start"]
