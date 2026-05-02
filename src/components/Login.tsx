@@ -15,7 +15,7 @@ export default function Login({ onLogin }: LoginProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [logoUrl, setLogoUrl] = useState("https://lirp.cdn-website.com/3932750e/dms3blk/lib/exe/fetch.php?media=logo_saude_sabor.png");
+  const [logoUrl, setLogoUrl] = useState("/logo.png");
 
   useEffect(() => {
     fetch("/api/settings")
