@@ -394,13 +394,20 @@ async function startServer() {
   // --- MIGRATION ROUTES (TEMPORARY) ---
   app.get("/api/admin/backup-db", (req, res) => {
     if (req.query.token !== MIGRATION_TOKEN) return res.status(401).send("Unauthorized");
-    res.download(dbPath);
+    try {
+      db.pragma('wal_checkpoint(FULL)');
+      res.download(dbPath);
+    } catch (e: any) {
+      res.status(500).send(e.message);
+    }
   });
 
   app.post("/api/admin/restore-db", express.raw({ type: 'application/octet-stream', limit: '50mb' }), (req, res) => {
     if (req.query.token !== MIGRATION_TOKEN) return res.status(401).send("Unauthorized");
     try {
       db.close();
+      if (fs.existsSync(dbPath + '-wal')) fs.unlinkSync(dbPath + '-wal');
+      if (fs.existsSync(dbPath + '-shm')) fs.unlinkSync(dbPath + '-shm');
       fs.writeFileSync(dbPath, req.body);
       db = new Database(dbPath);
       db.pragma('journal_mode = WAL');
