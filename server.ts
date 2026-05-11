@@ -396,6 +396,11 @@ async function startServer() {
     if (req.query.token !== MIGRATION_TOKEN) return res.status(401).send("Unauthorized");
     try {
       db.pragma('wal_checkpoint(FULL)');
+      console.log("Database path:", dbPath);
+      console.log("File exists:", fs.existsSync(dbPath));
+      if (!fs.existsSync(dbPath)) {
+        return res.status(404).send(`Database file not found at ${dbPath}`);
+      }
       res.download(dbPath);
     } catch (e: any) {
       res.status(500).send(e.message);
