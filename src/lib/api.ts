@@ -112,9 +112,9 @@ export const api = {
   },
   sales: {
     list: () => fetch(`${API_BASE}/sales`).then(res => res.json()),
-    create: (data: { 
-      description: string; 
-      total_value: number; 
+    create: (data: {
+      description: string;
+      total_value: number;
       delivery?: Partial<Delivery>;
       items?: { inventory_id: number; quantity: number }[]
     }) =>
@@ -123,6 +123,14 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       }).then(res => res.json()),
+    update: (id: number, data: { description?: string; total_value?: number }) =>
+      fetch(`${API_BASE}/sales/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      }).then(res => res.json()),
+    delete: (id: number) =>
+      fetch(`${API_BASE}/sales/${id}`, { method: 'DELETE' }).then(res => res.json()),
   },
   deliveries: {
     list: () => fetch(`${API_BASE}/deliveries`).then(res => res.json()),
@@ -141,6 +149,30 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       }).then(res => res.json()),
+    update: (id: number, data: { description?: string; amount?: number; category?: string }) =>
+      fetch(`${API_BASE}/expenses/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      }).then(res => res.json()),
+    delete: (id: number) =>
+      fetch(`${API_BASE}/expenses/${id}`, { method: 'DELETE' }).then(res => res.json()),
   },
   stats: () => fetch(`${API_BASE}/stats`).then(res => res.json()),
+  settings: {
+    get: (): Promise<Record<string, string>> =>
+      fetch(`${API_BASE}/settings`).then(res => res.json()),
+    update: (data: {
+      admin_username?: string;
+      admin_password?: string;
+      app_logo?: string;
+      default_marmita_price?: string | number;
+      default_delivery_fee?: string | number;
+    }) =>
+      fetch(`${API_BASE}/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      }).then(res => res.json()),
+  },
 };

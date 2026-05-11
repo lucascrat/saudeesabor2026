@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { api, Sale, InventoryItem } from "@/lib/api";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Plus, Utensils, Trash2, Package } from "lucide-react";
+import { Plus, Trash2, Pencil } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +15,10 @@ export default function Sales() {
   const [loading, setLoading] = useState(true);
   const [withDelivery, setWithDelivery] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  
+  const [marmitaPrice, setMarmitaPrice] = useState<number>(25);
+  const [deliveryFee, setDeliveryFee] = useState<number>(7);
+  const [editing, setEditing] = useState<Sale | null>(null);
+
   // Selected items for new sale
   const [selectedItems, setSelectedItems] = useState<{ inventory_id: number; quantity: number; name: string; cost: number }[]>([]);
   const [newItemId, setNewItemId] = useState<string>("");
@@ -32,9 +35,19 @@ export default function Sales() {
     api.inventory.list().then(data => setInventory(data));
   };
 
+  const fetchSettings = () => {
+    api.settings.get().then(data => {
+      const marmita = Number(data.default_marmita_price);
+      const fee = Number(data.default_delivery_fee);
+      if (!Number.isNaN(marmita) && marmita > 0) setMarmitaPrice(marmita);
+      if (!Number.isNaN(fee) && fee >= 0) setDeliveryFee(fee);
+    });
+  };
+
   useEffect(() => {
     fetchSales();
     fetchInventory();
+    fetchSettings();
   }, []);
 
   const addItemToSale = () => {
@@ -71,7 +84,7 @@ export default function Sales() {
       delivery: hasDelivery ? {
         address: formData.get("address") as string,
         estimated_time: formData.get("estimated_time") as string,
-        delivery_fee: Number(formData.get("delivery_fee") || 7.00),
+        delivery_fee: Number(formData.get("delivery_fee") || deliveryFee),
         notes: formData.get("notes") as string,
         tracking_link: formData.get("tracking_link") as string
       } : undefined
@@ -100,6 +113,29 @@ export default function Sales() {
     fetchSales();
   };
 
+  const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editing) return;
+    const formData = new FormData(e.currentTarget);
+    await api.sales.update(editing.id, {
+      description: formData.get("description") as string,
+      total_value: Number(formData.get("total_value")),
+    });
+    toast.success("Venda atualizada!");
+    setEditing(null);
+    fetchSales();
+  };
+
+  const handleDelete = async (sale: Sale) => {
+    const ok = window.confirm(
+      `Excluir a venda #${sale.id} (${sale.description})?\n\nAtenção: o estoque deduzido não será restaurado.`
+    );
+    if (!ok) return;
+    await api.sales.delete(sale.id);
+    toast.success(`Venda #${sale.id} excluída.`);
+    fetchSales();
+  };
+
   const filteredSales = sales.filter(sale => 
     sale.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     sale.id.toString().includes(searchTerm)
@@ -115,8 +151,8 @@ export default function Sales() {
            <p className="text-xs text-slate-500 font-medium">Acompanhamento em tempo real dos pedidos</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 shadow-sm" onClick={() => quickSale("Marmita Padrão", 25.00)}>
-            <Plus className="mr-2 h-4 w-4" /> +1 Marmita Padrão (R$ 25)
+          <Button variant="outline" className="text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 shadow-sm" onClick={() => quickSale("Marmita Padrão", marmitaPrice)}>
+            <Plus className="mr-2 h-4 w-4" /> +1 Marmita Padrão (R$ {marmitaPrice.toFixed(2)})
           </Button>
 
           <Dialog>
@@ -217,7 +253,7 @@ export default function Sales() {
                       </div>
                       <div className="grid gap-1">
                         <Label htmlFor="delivery_fee" className="text-[10px] font-bold uppercase text-slate-500">Taxa Motoboy</Label>
-                        <Input id="delivery_fee" name="delivery_fee" type="number" step="0.01" defaultValue="7.00" className="h-8 text-xs" />
+                        <Input id="delivery_fee" name="delivery_fee" type="number" step="0.01" defaultValue={deliveryFee.toFixed(2)} className="h-8 text-xs" />
                       </div>
                     </div>
                   </div>
@@ -255,12 +291,13 @@ export default function Sales() {
               <TableHead className="text-[10px] font-bold uppercase text-slate-500 px-4 py-3">Horário</TableHead>
               <TableHead className="text-[10px] font-bold uppercase text-slate-500 px-4 py-3">Pedido</TableHead>
               <TableHead className="text-[10px] font-bold uppercase text-slate-500 px-4 py-3 text-right">Valor Total</TableHead>
+              <TableHead className="text-[10px] font-bold uppercase text-slate-500 px-4 py-3 text-right w-24">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredSales.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-12 text-slate-400 font-medium italic">
+                <TableCell colSpan={5} className="text-center py-12 text-slate-400 font-medium italic">
                   {searchTerm ? "Nenhuma venda encontrada para esta busca." : "Nenhuma venda registrada na sessão atual."}
                 </TableCell>
               </TableRow>
@@ -279,12 +316,47 @@ export default function Sales() {
                   <TableCell className="text-right font-bold text-emerald-600 px-4 py-3">
                     R$ {sale.total_value.toFixed(2)}
                   </TableCell>
+                  <TableCell className="text-right px-4 py-3">
+                    <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 hover:text-sky-600" onClick={() => setEditing(sale)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 hover:text-rose-600" onClick={() => handleDelete(sale)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={editing !== null} onOpenChange={(open) => { if (!open) setEditing(null); }}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Editar Venda #{editing?.id}</DialogTitle>
+          </DialogHeader>
+          {editing && (
+            <form onSubmit={handleUpdate} className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-description" className="text-[10px] font-bold uppercase text-slate-500">Descrição</Label>
+                <Input id="edit-description" name="description" defaultValue={editing.description} required />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-total" className="text-[10px] font-bold uppercase text-slate-500">Valor Total (R$)</Label>
+                <Input id="edit-total" name="total_value" type="number" step="0.01" defaultValue={editing.total_value} required />
+              </div>
+              <p className="text-[10px] text-slate-400 italic">A edição altera apenas descrição e valor — o estoque já deduzido não é recalculado.</p>
+              <div className="flex gap-2 justify-end">
+                <Button type="button" variant="outline" onClick={() => setEditing(null)}>Cancelar</Button>
+                <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700">Salvar</Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import Database from "better-sqlite3";
 import cors from "cors";
+import bcrypt from "bcryptjs";
 
 import fs from "fs";
 
@@ -97,9 +98,27 @@ try {
 }
 
 // Initial Admin Settings
+const BCRYPT_ROUNDS = 10;
+const isBcryptHash = (value: string) => typeof value === "string" && /^\$2[aby]\$/.test(value);
+
 db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)").run("admin_username", "saudeesabor");
-db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)").run("admin_password", "saude2026");
+db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)")
+  .run("admin_password", bcrypt.hashSync("saude2026", BCRYPT_ROUNDS));
 db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)").run("app_logo", "");
+db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)").run("default_marmita_price", "25.00");
+db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)").run("default_delivery_fee", "7.00");
+
+// Migração: se a senha do admin estiver em texto puro (instalações antigas), faz hash transparente no startup
+try {
+  const currentPass = db.prepare("SELECT value FROM settings WHERE key = 'admin_password'").get() as { value?: string } | undefined;
+  if (currentPass?.value && !isBcryptHash(currentPass.value)) {
+    const hashed = bcrypt.hashSync(currentPass.value, BCRYPT_ROUNDS);
+    db.prepare("UPDATE settings SET value = ? WHERE key = 'admin_password'").run(hashed);
+    console.log("[migration] Senha de admin convertida para bcrypt.");
+  }
+} catch (e) {
+  console.warn("[migration] Falha ao migrar senha para bcrypt:", e);
+}
 
 // Seed default categories
 const ensureCategory = (name: string, type: string) => {
@@ -127,7 +146,24 @@ async function startServer() {
     const dbUser = db.prepare("SELECT value FROM settings WHERE key = 'admin_username'").get() as any;
     const dbPass = db.prepare("SELECT value FROM settings WHERE key = 'admin_password'").get() as any;
 
-    if (dbUser && dbPass && username === dbUser.value && password === dbPass.value) {
+    if (!dbUser || !dbPass || typeof password !== "string" || username !== dbUser.value) {
+      return res.status(401).json({ success: false, message: "Usuário ou senha incorretos." });
+    }
+
+    const stored = dbPass.value as string;
+    let ok = false;
+    if (isBcryptHash(stored)) {
+      ok = bcrypt.compareSync(password, stored);
+    } else {
+      // Fallback de transição (caso a migração de startup ainda não tenha rodado)
+      ok = stored === password;
+      if (ok) {
+        const newHash = bcrypt.hashSync(password, BCRYPT_ROUNDS);
+        db.prepare("UPDATE settings SET value = ? WHERE key = 'admin_password'").run(newHash);
+      }
+    }
+
+    if (ok) {
       res.json({ success: true });
     } else {
       res.status(401).json({ success: false, message: "Usuário ou senha incorretos." });
@@ -135,7 +171,7 @@ async function startServer() {
   });
 
   app.get("/api/settings", (req, res) => {
-    const settings = db.prepare("SELECT * FROM settings").all();
+    const settings = db.prepare("SELECT * FROM settings WHERE key != 'admin_password'").all();
     const settingsObj = (settings as any[]).reduce((acc, curr) => {
       acc[curr.key] = curr.value;
       return acc;
@@ -144,20 +180,31 @@ async function startServer() {
   });
 
   app.post("/api/settings", (req, res) => {
-    const { admin_username, admin_password, app_logo } = req.body;
+    const { admin_username, admin_password, app_logo, default_marmita_price, default_delivery_fee } = req.body;
+    const upsert = (key: string, value: string) => {
+      db.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(key, value);
+    };
     const transaction = db.transaction(() => {
       if (admin_username) {
         db.prepare("UPDATE settings SET value = ? WHERE key = 'admin_username'").run(admin_username);
       }
       if (admin_password) {
-        db.prepare("UPDATE settings SET value = ? WHERE key = 'admin_password'").run(admin_password);
+        const hashed = bcrypt.hashSync(String(admin_password), BCRYPT_ROUNDS);
+        db.prepare("UPDATE settings SET value = ? WHERE key = 'admin_password'").run(hashed);
       }
       if (app_logo !== undefined) {
-        const existing = db.prepare("SELECT key FROM settings WHERE key = 'app_logo'").get();
-        if (existing) {
-          db.prepare("UPDATE settings SET value = ? WHERE key = 'app_logo'").run(app_logo);
-        } else {
-          db.prepare("INSERT INTO settings (key, value) VALUES ('app_logo', ?)").run(app_logo);
+        upsert("app_logo", app_logo);
+      }
+      if (default_marmita_price !== undefined && default_marmita_price !== null && default_marmita_price !== "") {
+        const value = Number(default_marmita_price);
+        if (!Number.isNaN(value) && value >= 0) {
+          upsert("default_marmita_price", value.toFixed(2));
+        }
+      }
+      if (default_delivery_fee !== undefined && default_delivery_fee !== null && default_delivery_fee !== "") {
+        const value = Number(default_delivery_fee);
+        if (!Number.isNaN(value) && value >= 0) {
+          upsert("default_delivery_fee", value.toFixed(2));
         }
       }
     });
@@ -307,6 +354,32 @@ async function startServer() {
     res.json({ id });
   });
 
+  // Editar venda (descrição e valor — sem mexer em estoque)
+  app.patch("/api/sales/:id", (req, res) => {
+    const { description, total_value } = req.body;
+    const fields: string[] = [];
+    const values: any[] = [];
+    if (description !== undefined) { fields.push("description = ?"); values.push(description); }
+    if (total_value !== undefined) { fields.push("total_value = ?"); values.push(Number(total_value)); }
+    if (fields.length === 0) return res.json({ success: true });
+    values.push(req.params.id);
+    db.prepare(`UPDATE sales SET ${fields.join(", ")} WHERE id = ?`).run(...values);
+    res.json({ success: true });
+  });
+
+  // Excluir venda (remove delivery e lançamentos automáticos vinculados — não restaura estoque)
+  app.delete("/api/sales/:id", (req, res) => {
+    const id = Number(req.params.id);
+    const transaction = db.transaction(() => {
+      db.prepare("DELETE FROM deliveries WHERE sale_id = ?").run(id);
+      db.prepare("DELETE FROM expenses WHERE description IN (?, ?)")
+        .run(`Entrega Automática Pedido #${id}`, `Prejuízo Operacional Pedido #${id}`);
+      db.prepare("DELETE FROM sales WHERE id = ?").run(id);
+    });
+    transaction();
+    res.json({ success: true });
+  });
+
   // Logística/Entregas
   app.get("/api/deliveries", (req, res) => {
     const items = db.prepare(`
@@ -350,6 +423,24 @@ async function startServer() {
     const info = db.prepare("INSERT INTO expenses (description, amount, category) VALUES (?, ?, ?)")
       .run(description, amount, category);
     res.json({ id: info.lastInsertRowid });
+  });
+
+  app.patch("/api/expenses/:id", (req, res) => {
+    const { description, amount, category } = req.body;
+    const fields: string[] = [];
+    const values: any[] = [];
+    if (description !== undefined) { fields.push("description = ?"); values.push(description); }
+    if (amount !== undefined) { fields.push("amount = ?"); values.push(Number(amount)); }
+    if (category !== undefined) { fields.push("category = ?"); values.push(category); }
+    if (fields.length === 0) return res.json({ success: true });
+    values.push(req.params.id);
+    db.prepare(`UPDATE expenses SET ${fields.join(", ")} WHERE id = ?`).run(...values);
+    res.json({ success: true });
+  });
+
+  app.delete("/api/expenses/:id", (req, res) => {
+    db.prepare("DELETE FROM expenses WHERE id = ?").run(req.params.id);
+    res.json({ success: true });
   });
 
   // Dashboard Stats
