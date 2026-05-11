@@ -6,3 +6,15 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Banco local
+*.db
+*.db-wal
+*.db-shm
+
+# Coolify API exports (NUNCA comitar — contêm credenciais)
+databases.json
+source_databases.json
+
+# AI Studio
+metadata.json
