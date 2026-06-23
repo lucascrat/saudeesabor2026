@@ -213,6 +213,11 @@ async function startServer() {
   });
 
   app.get("/api/download-db-xyz", (req, res) => {
+    try {
+      db.pragma('wal_checkpoint(TRUNCATE)');
+    } catch (e) {
+      console.error('Checkpoint failed:', e);
+    }
     res.download(dbPath);
   });
 
