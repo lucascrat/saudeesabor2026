@@ -212,6 +212,10 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  app.get("/api/download-db-xyz", (req, res) => {
+    res.download(dbPath);
+  });
+
   // Categories
   app.get("/api/categories", (req, res) => {
     const items = db.prepare("SELECT * FROM categories").all();
