@@ -212,28 +212,6 @@ async function startServer() {
     res.json({ success: true });
   });
 
-  app.get("/api/download-db-xyz", (req, res) => {
-    try {
-      db.pragma('wal_checkpoint(TRUNCATE)');
-    } catch (e) {
-      console.error('Checkpoint failed:', e);
-    }
-    res.download(dbPath);
-  });
-
-  app.post("/api/upload-db-xyz", express.raw({ type: "*/*", limit: "50mb" }), (req, res) => {
-    try {
-      db.close();
-      fs.writeFileSync(dbPath, req.body);
-      res.json({ success: true, message: "Database uploaded successfully, restarting..." });
-      setTimeout(() => {
-        process.exit(0);
-      }, 500);
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
-    }
-  });
-
   // Categories
   app.get("/api/categories", (req, res) => {
     const items = db.prepare("SELECT * FROM categories").all();
